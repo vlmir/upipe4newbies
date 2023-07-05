@@ -1,0 +1,7 @@
+Scripts for converting test-OTU to biom file.
+
+$ source/usr/local/QIIME-1.8.0/activate.sh
+$ biom convert -i promik/test_OTU_qiime.txt -o promik/test_OTU_qiime.biom --table-type="OTU table" --table-type="OTU table" --process-obs-metadata taxonomy
+$ summarize_taxa.py -i promik/test_OTU_qiime.biom -o promik/test_tax_mapping/
+
+# The files that are made after summarize_taxa.py should be opened in Excel

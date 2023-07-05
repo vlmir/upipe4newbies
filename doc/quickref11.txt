@@ -1,0 +1,68 @@
+### IMPORTANT ###
+# Prepare your environment before the very 1st use of usearch on vm1:
+ $ echo 'PATH=$PATH:/work/upipe/scripts' >> ~/.bashrc
+# this makes links to the scripts superfluous
+
+### Assumptions:
+# you are in your project dir (PROJECT/ in this example)
+# the original reads are in reads/, not in data/reads/ !!!
+# the taxonomy reference data are in ../taxref/ for this example
+
+### Note:
+# the exact paths to the input and output files can be found in log files
+
+###############################################################################
+
+### PRE-PROCESSING ###
+# creating a reference database:
+usearch -makeudb_usearch /work/upipe/taxref/rdp_16s_trainset15/fasta/refdb.fa -output ../taxref/db.udb
+# Note: db.udb is project independent, once created can be used repeatedly until you want to update refdb.fa
+
+### PIPELINE ###
+==> Step1: fastq_mergepairs.pl <==
+# inputs in reads/, outputs in data/paired/:
+# Usage: fastq_mergepairs.pl 20 20 50 25 > logs/fastq_mergepairs.log 2>logs/fastq_mergepairs.err
+# Cmd: usearch -fastq_mergepairs reads/READ.fastq -fastqout data/paired/MERGED.fq -report data/paired/merge_pairs.report -fastq_minmergelen 390, -fastq_maxdiffs 15
+==> Step2: fastq_eestats.pl <==
+# inputs in data/paired/, outputs in data/pooled/:
+# Usage: fastq_eestats.pl > logs/fastq_eestats.log 2>logs/fastq_eestats.err
+# Cmd: cat data/paired/*.fq > data/pooled/PROJECT.fq
+# Cmd: usearch -fastq_eestats PROJECT.fq -output data/pooled/fastq_eestats.out
+==> Step3: fastq_filter.pl <==
+# inputs in data/paired/, outputs in data/paired/:
+# Usage: fastq_filter.pl 1.0 > logs/fastq_filter.log 2>logs/fastq_filter.err
+# Cmd: usearch -fastq_filter data/paired/MERGED.fq -fastq_maxee 1.0 -fastaout data/paired/MERGED--1.0.fasta
+==> Step4: fastx_uniques-sortbysize.pl <==
+# inputs in data/paired/, outputs in data/pooled/:
+# Usage: fastx_uniques-sortbysize.pl --1.0 2 > logs/fastx_uniques-sortbysize.log 2>logs/fastx_uniques-sortbysize.err
+# Cmd: cat data/paired/*--1.0.fasta > data/pooled/PROJECT--1.0.fa
+# Cmd: usearch -fastx_uniques data/pooled/PROJECT--1.0.fa -fastaout data/pooled/PROJECT--1.0.fad -sizeout
+# Cmd: usearch -sortbysize data/pooled/PROJECT--1.0.fad -fastaout data/pooled/PROJECT--1.0--2.fas -minsize 2
+>>>>>>>>>>>>>>>>>>>>>>>>>>> Single File Operations <<<<<<<<<<<<<<<<<<<<<<<<<<<<
+==> Step5: cluster_otus.pl <==
+# inputs in data/pooled/, outputs in data/final:
+# Usage: cluster_otus.pl --1.0--2 3 > logs/cluster_otus.log 2>logs/cluster_otus.err
+# Cmd: usearch -cluster_otus data/pooled/PROJECT--1.0--2.fas -otus data/final/PROJECT--1.0--2--3.fac -uparseout data/final/PROJECT--1.0--2--3.scores -relabel OTU_ 
+==> Step6: usearch_global-otutab2biom.pl <==
+# inputs in data/final, outputs in data/final:
+# Usage: usearch_global-otutab2biom.pl --1.0--2--3 0.97 > logs/usearch_global-otutab2biom.log 2>logs/usearch_global-otutab2biom.err
+# Cmd: usearch -usearch_global data/pooled/PROJECT--1.0.fa -db data/final/PROJECT--1.0--2--3.fac -strand plus -id 0.97 -otutabout data/final/PROJECT--1.0--2--3--0.97.otu-tab -biomout data/final/PROJECT--1.0--2--3--0.97.biom 
+==> Step7: no script <==
+# inputs in data/final, outputs in data/final:
+usearch -sintax data/final/PROJECT--1.0--2--3.fac -db ../taxref/db.udb -tabbedout data/final/PROJECT--1.0--2--3.sintax -strand both -sintax_cutoff 0.80
+# Note: input and output files may be located anywhere, just be sure to provide correct paths
+
+### EXTENSIONS ###
+==> otu_table_with_taxa.pl <==
+# optional, dependent on step 6
+# Usage: otu_table_with_taxa.pl data/final/PROJECT--1.0--2--3--0.97.otu-tab data/final/PROJECT--1.0--0.80.utax > data/final/PROJECT--1.0--2--3--0.97.otutx-tab
+==> swapVal.py <==
+# Usage: python swapVal.py mytable.tsv "" something 4
+# Note: all empty cells in column 4 are replaced with 'something'
+# Usage: python swapVal.py mytable.tsv "" something 0
+# Note: all empty cells in ALL columns are replaced with 'something'
+
+###############################################################################
+
+# PS: Listing chronologically all the commands that have been used Step1 through Step6:
+ $ ls -t logs/*.log | xargs grep cmd:

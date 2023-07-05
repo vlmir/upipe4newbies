@@ -1,0 +1,52 @@
+### IMPORTANT ###
+# Prepare your environment before the very 1st use of usearch on vm1:
+ $ echo 'PATH=$PATH:/work/upipe/scripts' >> ~/.bashrc
+# this makes links to the scripts superfluous
+
+### Assumptions:
+# you are in your project dir (test/ in this example)
+# the original reads are in reads/, not in data/reads/ !!!
+# the taxonomy reference data are in ../taxref/ for this example
+
+### Note:
+# the exact paths to the input and output files are to be found in log files
+
+###############################################################################
+
+### PIPELINE ###
+==> fastq_mergepairs.pl <==
+# Step1: inputs in reads/, outputs in data/paired/:
+# Usage: fastq_mergepairs.pl 20 20 50 25 > logs/fastq_mergepairs.log 2>logs/fastq_mergepairs.err
+==> fastq_eestats.pl <==
+# Step2: inputs in data/paired/, outputs in data/pooled/:
+# Usage: fastq_eestats.pl > logs/fastq_eestats.log 2>logs/fastq_eestats.err
+==> fastq_filter.pl <==
+# Step3: inputs in data/paired/, outputs in data/paired/:
+# Usage: fastq_filter.pl 1.0 > logs/fastq_filter.log 2>logs/fastq_filter.err
+==> fastx_uniques-sortbysize.pl <==
+# Step4: inputs in data/paired/, outputs in data/pooled/:
+# Usage: fastx_uniques-sortbysize.pl --1.0 2 > logs/fastx_uniques-sortbysize.log 2>logs/fastx_uniques-sortbysize.err
+==> cluster_otus.pl <==
+# Step5: inputs in data/pooled/, outputs in data/final:
+# Usage: cluster_otus.pl --1.0--2 3 > logs/cluster_otus.log 2>logs/cluster_otus.err
+==> usearch_global-otutab2biom.pl <==
+# Step6: inputs in data/final, outputs in data/final:
+# Usage: usearch_global-otutab2biom.pl --1.0--2--3 0.97 ../taxref > logs/usearch_global-otutab2biom.log 2>logs/usearch_global-otutab2biom.err
+==> makeudb_sintax-sintax.pl <==
+# Step7: inputs in data/final, outputs in data/final:
+# Usage: makeudb_sintax-sintax.pl --1.0--2--3 0.80 ../taxref > logs/makeudb_sintax-sintax.log 2>logs/makeudb_sintax-sintax.err
+
+### EXTENSIONS ###
+==> otu_table_with_taxa.pl <==
+# optional, dependent on step 6
+# Usage: otu_table_with_taxa.pl test--1.0--2--3--0.97.otu-tab test--1.0--0.80.utax > data/final/test--1.0--2--3--0.97.otutx-tab
+==> swapVal.py <==
+# Usage: python swapVal.py mytable.tsv "" something 4
+# Note: all empty cells in column 4 are replaced with 'something'
+# Usage: python swapVal.py mytable.tsv "" something 0
+# Note: all empty cells in ALL columns are replaced with 'something'
+
+###############################################################################
+
+# PS: Listing chronologically all the commands that have been used in the pipeline:
+ $ ls -rt logs/*.log | xargs grep cmd:
